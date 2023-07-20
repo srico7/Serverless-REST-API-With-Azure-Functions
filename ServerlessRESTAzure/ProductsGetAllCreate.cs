@@ -7,29 +7,35 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Microsoft.EntityFrameworkCore; 
 
 namespace ServerlessRESTAzure
 {
-    public static class ProductsGetAllCreate
+    public class ProductsGetAllCreate
     {
-        [FunctionName("ProductsGetAllCreate")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
-            ILogger log)
+        private readonly AppDbContext _ctx; 
+
+        public ProductsGetAllCreate(AppDbContext context)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
+            _ctx = context; // Initialize the AppDbContext field through constructor injection
+        }
 
-            string name = req.Query["name"];
+        [FunctionName("ProductsGetAllCreate")]
+        public async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "products")] HttpRequest req)
+        {
+            if (req.Method == HttpMethods.Post)
+            {
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                var product = JsonConvert.DeserializeObject<Product>(requestBody);
+                _ctx.Products.Add(product);
+                await _ctx.SaveChangesAsync();
+                return new CreatedResult("/products", product);
+            }
 
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
-
-            string responseMessage = string.IsNullOrEmpty(name)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {name}. This HTTP triggered function executed successfully.";
-
-            return new OkObjectResult(responseMessage);
+            var products = await _ctx.Products.ToListAsync(); 
+            return new OkObjectResult(products);
         }
     }
 }
+
