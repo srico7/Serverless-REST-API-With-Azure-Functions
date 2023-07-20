@@ -22,12 +22,8 @@ namespace ServerlessRESTAzure
         {
 
             var keyVaultUrl = new Uri(Environment.GetEnvironmentVariable("KeyVaultUrl"));
-            
-            Azure.Identity.DefaultAzureCredentialOptions options = new Azure.Identity.DefaultAzureCredentialOptions { Diagnostics = { IsLoggingContentEnabled = true } };
-            var secretClient = new SecretClient(keyVaultUrl, new DefaultAzureCredential(options));
-
-            var cs = secretClient.GetSecret("sql").Value.Value;
-            builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(cs));
+            var secretClient = new SecretClient(keyVaultUrl, new DefaultAzureCredential());
+            builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(secretClient.GetSecret("sql").Value.Value));
         }
     }
 }
